@@ -95,4 +95,15 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
         return output;
     }
 
+    @Override
+    public NDList batchProcessInput(TranslatorContext ctx, List<Input> inputs) throws Exception {
+        // GOAL: TODO
+        return super.batchProcessInput(ctx, inputs);
+    }
+
+    @Override
+    public List<Output> batchProcessOutput(TranslatorContext ctx, NDList list) throws Exception {
+        // GOAL: TODO
+        return super.batchProcessOutput(ctx, list);
+    }
 }
