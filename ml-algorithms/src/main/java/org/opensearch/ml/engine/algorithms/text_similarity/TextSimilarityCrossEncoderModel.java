@@ -50,6 +50,7 @@ public class TextSimilarityCrossEncoderModel extends DLModel {
             Input input = new Input();
             input.add(queryText);
             input.add(doc);
+            // GOAL: use batch prediction to improve performance
             output = getPredictor().predict(input);
             ModelTensors outputTensors = ModelTensors.fromBytes(output.getData().getAsBytes());
             tensorOutputs.add(outputTensors);
