@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import ai.djl.util.PairList;
 import org.opensearch.ml.common.output.model.MLResultDataType;
 import org.opensearch.ml.common.output.model.ModelTensor;
 import org.opensearch.ml.common.output.model.ModelTensors;
@@ -97,13 +98,68 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
 
     @Override
     public NDList batchProcessInput(TranslatorContext ctx, List<Input> inputs) throws Exception {
-        // GOAL: TODO
-        return super.batchProcessInput(ctx, inputs);
+        // GOAL: double check
+        NDManager manager = ctx.getNDManager();
+        int batchSize = inputs.size();
+        List<String> sentences = new ArrayList<>(batchSize);
+        List<String> contexts = new ArrayList<>(batchSize);
+        for (Input input : inputs) {
+            String sentence = input.getAsString(0);
+            String context = input.getAsString(1);
+            sentences.add(sentence);
+            contexts.add(context);
+        }
+        // Tokenize in batches
+        Encoding[] encodings = tokenizer.batchEncode(new PairList<>(sentences, contexts));
+        int seqLen = encodings[0].getIds().length;
+        long[][] inputIds = new long[batchSize][seqLen];
+        long[][] attentionMasks = new long[batchSize][seqLen];
+        long[][] tokenTypeIds = new long[batchSize][seqLen];
+        for (int i = 0; i < batchSize; i++) {
+            inputIds[i] = encodings[i].getIds();
+            attentionMasks[i] = encodings[i].getAttentionMask();
+            tokenTypeIds[i] = encodings[i].getTypeIds();
+        }
+        NDArray inputIdsArray = manager.create(inputIds);
+        inputIdsArray.setName("input_ids");
+        NDArray attentionMaskArray = manager.create(attentionMasks);
+        attentionMaskArray.setName("attention_mask");
+        NDArray tokenTypeArray = manager.create(tokenTypeIds);
+        tokenTypeArray.setName("token_type_ids");
+        NDList ndList = new NDList();
+        ndList.add(inputIdsArray);
+        ndList.add(attentionMaskArray);
+        ndList.add(tokenTypeArray);
+        return ndList;
     }
 
     @Override
     public List<Output> batchProcessOutput(TranslatorContext ctx, NDList list) throws Exception {
-        // GOAL: TODO
-        return super.batchProcessOutput(ctx, list);
+        // GOAL: double check
+        // Assume the first NDArray in list is the batched output: shape [batch, ...]
+        NDArray batchArray = list.get(0);
+        int batchSize = (int) batchArray.getShape().get(0);
+        List<Output> outputs = new ArrayList<>(batchSize);
+        for (int i = 0; i < batchSize; i++) {
+            NDArray single = batchArray.get(i);
+            String name = SIMILARITY_NAME;
+            Number[] data = single.toArray();
+            long[] shape = single.getShape().getShape();
+            DataType dataType = single.getDataType();
+            MLResultDataType mlResultDataType = MLResultDataType.valueOf(dataType.name());
+            ByteBuffer buffer = single.toByteBuffer();
+            ModelTensor tensor = ModelTensor.builder()
+                .name(name)
+                .data(data)
+                .shape(shape)
+                .dataType(mlResultDataType)
+                .byteBuffer(buffer)
+                .build();
+            ModelTensors modelTensorOutput = new ModelTensors(List.of(tensor));
+            Output output = new Output(200, "OK");
+            output.add(modelTensorOutput.toBytes());
+            outputs.add(output);
+        }
+        return outputs;
     }
 }
