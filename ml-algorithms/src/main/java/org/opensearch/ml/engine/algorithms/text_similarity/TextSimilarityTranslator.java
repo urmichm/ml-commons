@@ -135,26 +135,47 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
 
     @Override
     public List<Output> batchProcessOutput(TranslatorContext ctx, NDList list) throws Exception {
-        // GOAL: double check
-        // Assume the first NDArray in list is the batched output: shape [batch, ...]
+        // Process the entire batch at once to maximize efficiency
         NDArray batchArray = list.get(0);
         int batchSize = (int) batchArray.getShape().get(0);
+
+        // Convert the entire batch to array once instead of per-item
+        Number[] batchData = batchArray.toArray();
+        long[] batchShape = batchArray.getShape().getShape();
+        DataType dataType = batchArray.getDataType();
+        MLResultDataType mlResultDataType = MLResultDataType.valueOf(dataType.name());
+        ByteBuffer batchBuffer = batchArray.toByteBuffer();
+
+        // Calculate the size of each individual output
+        int itemSize = batchData.length / batchSize;
+        int itemDims = batchShape.length - 1;
+        long[] itemShape = new long[itemDims];
+        System.arraycopy(batchShape, 1, itemShape, 0, itemDims);
+
         List<Output> outputs = new ArrayList<>(batchSize);
+
+        // Split the batch data into individual outputs without re-converting from NDArray
         for (int i = 0; i < batchSize; i++) {
-            NDArray single = batchArray.get(i);
-            String name = SIMILARITY_NAME;
-            Number[] data = single.toArray();
-            long[] shape = single.getShape().getShape();
-            DataType dataType = single.getDataType();
-            MLResultDataType mlResultDataType = MLResultDataType.valueOf(dataType.name());
-            ByteBuffer buffer = single.toByteBuffer();
+            int startIdx = i * itemSize;
+            int endIdx = startIdx + itemSize;
+            Number[] itemData = new Number[itemSize];
+            System.arraycopy(batchData, startIdx, itemData, 0, itemSize);
+
+            // Create ByteBuffer slice for this item
+            int bytesPerItem = batchBuffer.capacity() / batchSize;
+            ByteBuffer itemBuffer = batchBuffer.asReadOnlyBuffer();
+            itemBuffer.position(i * bytesPerItem);
+            itemBuffer.limit((i + 1) * bytesPerItem);
+            ByteBuffer itemBufferSlice = itemBuffer.slice();
+
             ModelTensor tensor = ModelTensor.builder()
-                .name(name)
-                .data(data)
-                .shape(shape)
+                .name(SIMILARITY_NAME)
+                .data(itemData)
+                .shape(itemShape)
                 .dataType(mlResultDataType)
-                .byteBuffer(buffer)
+                .byteBuffer(itemBufferSlice)
                 .build();
+
             ModelTensors modelTensorOutput = new ModelTensors(List.of(tensor));
             Output output = new Output(200, "OK");
             output.add(modelTensorOutput.toBytes());
