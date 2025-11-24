@@ -63,7 +63,7 @@ public class MLEngine {
         this.clusterService = clusterService;
     }
 
-    // GOAL: Remove this constructor
+    // QUESTION: May we remove this constructor?
     public MLEngine(Path opensearchDataFolder, Encryptor encryptor) {
         this(opensearchDataFolder, encryptor, null);
     }

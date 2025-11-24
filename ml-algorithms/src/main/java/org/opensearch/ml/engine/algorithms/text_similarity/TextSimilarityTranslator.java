@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import ai.djl.util.PairList;
 import org.opensearch.ml.common.output.model.MLResultDataType;
 import org.opensearch.ml.common.output.model.ModelTensor;
 import org.opensearch.ml.common.output.model.ModelTensors;
@@ -36,6 +35,7 @@ import ai.djl.ndarray.NDList;
 import ai.djl.ndarray.NDManager;
 import ai.djl.ndarray.types.DataType;
 import ai.djl.translate.TranslatorContext;
+import ai.djl.util.PairList;
 
 public class TextSimilarityTranslator extends SentenceTransformerTranslator {
     public final String SIMILARITY_NAME = "similarity";
@@ -146,7 +146,8 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
             MLResultDataType mlResultDataType = MLResultDataType.valueOf(dataType.name());
             ByteBuffer itemBuffer = itemArray.toByteBuffer();
 
-            ModelTensor tensor = ModelTensor.builder()
+            ModelTensor tensor = ModelTensor
+                .builder()
                 .name(SIMILARITY_NAME)
                 .data(itemData)
                 .shape(itemShape)
