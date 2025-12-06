@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -171,6 +172,37 @@ public class TextSimilarityCrossEncoderModelTest {
         assertEquals("similarity", modelTensor.getName());
         Number[] data = modelTensor.getData();
         assertEquals(1, data.length);
+    }
+
+    @Test
+    public void test_TextSimilarity_Translator_BatchProcessInput() throws URISyntaxException, IOException {
+        TextSimilarityTranslator textSimilarityTranslator = new TextSimilarityTranslator();
+        TranslatorContext translatorContext = mock(TranslatorContext.class);
+        Model mlModel = mock(Model.class);
+        when(translatorContext.getModel()).thenReturn(mlModel);
+        when(mlModel.getModelPath()).thenReturn(Paths.get(getClass().getResource("../tokenize/tokenizer.json").toURI()).getParent());
+        textSimilarityTranslator.prepare(translatorContext);
+
+        NDManager manager = mock(NDManager.class);
+        when(translatorContext.getNDManager()).thenReturn(manager);
+        Input input = mock(Input.class);
+        String testSentence = "hello world";
+        when(input.getAsString(0)).thenReturn(testSentence);
+        when(input.getAsString(1)).thenReturn(testSentence);
+        NDArray indiceNdArray = mock(NDArray.class);
+        when(indiceNdArray.toLongArray()).thenReturn(new long[] { 102l, 101l });
+        when(manager.create((long[][]) any())).thenReturn(indiceNdArray);
+        doNothing().when(indiceNdArray).setName(any());
+        List<Input> inputList = new ArrayList<>(1);
+        inputList.add(input);
+        NDList outputList = textSimilarityTranslator.batchProcessInput(translatorContext, inputList);
+        assertEquals(3, outputList.size());
+        Iterator<NDArray> iterator = outputList.iterator();
+        while (iterator.hasNext()) {
+            NDArray ndArray = iterator.next();
+            long[] output = ndArray.toLongArray();
+            assertEquals(2, output.length);
+        }
     }
 
     @Test
