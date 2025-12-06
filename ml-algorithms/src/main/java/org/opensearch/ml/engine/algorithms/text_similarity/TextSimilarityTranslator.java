@@ -137,7 +137,7 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
 
     @Override
     public List<Output> batchProcessOutput(TranslatorContext ctx, NDList list) {
-        NDArray batchArray = list.get(0);
+        NDArray batchArray = list.getFirst();
         int batchSize = (int) batchArray.getShape().get(0);
         List<Output> outputs = new ArrayList<>(batchSize);
         for (int i = 0; i < batchSize; i++) {
