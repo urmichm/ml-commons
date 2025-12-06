@@ -111,6 +111,9 @@ public class TextSimilarityTranslator extends SentenceTransformerTranslator {
         // Tokenize in batches
         Encoding[] encodings = tokenizer.batchEncode(new PairList<>(sentences, contexts));
         int seqLen = encodings[0].getIds().length;
+        for (Encoding enc : encodings) {
+            seqLen = Math.max(seqLen, enc.getIds().length);
+        }
         long[][] inputIds = new long[batchSize][seqLen];
         long[][] attentionMasks = new long[batchSize][seqLen];
         long[][] tokenTypeIds = new long[batchSize][seqLen];
