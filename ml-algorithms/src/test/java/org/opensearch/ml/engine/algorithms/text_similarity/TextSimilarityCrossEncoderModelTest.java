@@ -29,6 +29,7 @@ import static org.opensearch.ml.engine.algorithms.DLModel.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -202,6 +203,49 @@ public class TextSimilarityCrossEncoderModelTest {
             NDArray ndArray = iterator.next();
             long[] output = ndArray.toLongArray();
             assertEquals(2, output.length);
+        }
+    }
+
+    @Test
+    public void test_TextSimilarity_Translator_BatchProcessOutput() throws URISyntaxException, IOException {
+        TextSimilarityTranslator textSimilarityTranslator = new TextSimilarityTranslator();
+        TranslatorContext translatorContext = mock(TranslatorContext.class);
+        Model mlModel = mock(Model.class);
+        when(translatorContext.getModel()).thenReturn(mlModel);
+        when(mlModel.getModelPath()).thenReturn(Paths.get(getClass().getResource("../tokenize/tokenizer.json").toURI()).getParent());
+        textSimilarityTranslator.prepare(translatorContext);
+
+        NDArray batchArray = mock(NDArray.class);
+        Shape batchShape = mock(Shape.class);
+        when(batchArray.getShape()).thenReturn(batchShape);
+        when(batchShape.get(0)).thenReturn(2L);
+
+        NDArray itemArray1 = mock(NDArray.class);
+        NDArray itemArray2 = mock(NDArray.class);
+        Shape itemShape = mock(Shape.class);
+        when(itemShape.getShape()).thenReturn(new long[] { 1 });
+        when(itemArray1.getShape()).thenReturn(itemShape);
+        when(itemArray2.getShape()).thenReturn(itemShape);
+        when(itemArray1.toArray()).thenReturn(new Number[] { 1.0f });
+        when(itemArray2.toArray()).thenReturn(new Number[] { 2.0f });
+        when(itemArray1.getDataType()).thenReturn(DataType.FLOAT32);
+        when(itemArray2.getDataType()).thenReturn(DataType.FLOAT32);
+        when(itemArray1.toByteBuffer()).thenReturn(ByteBuffer.allocate(4));
+        when(itemArray2.toByteBuffer()).thenReturn(ByteBuffer.allocate(4));
+        when(batchArray.get(0)).thenReturn(itemArray1);
+        when(batchArray.get(1)).thenReturn(itemArray2);
+
+        NDList ndList = new NDList(batchArray);
+        List<Output> outputs = textSimilarityTranslator.batchProcessOutput(translatorContext, ndList);
+        assertEquals(2, outputs.size());
+        for (Output output : outputs) {
+            byte[] bytes = output.getData().getAsBytes();
+            ModelTensors tensorOutput = ModelTensors.fromBytes(bytes);
+            List<ModelTensor> modelTensorsList = tensorOutput.getMlModelTensors();
+            assertEquals(1, modelTensorsList.size());
+            ModelTensor modelTensor = modelTensorsList.get(0);
+            assertEquals("similarity", modelTensor.getName());
+            assertEquals(1, modelTensor.getData().length);
         }
     }
 
